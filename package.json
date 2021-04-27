@@ -6,7 +6,6 @@
   "description": "https://github.com/mui-org/material-ui/blob/master/docs/src/pages/components/buttons/ContainedButtons.js",
   "dependencies": {
     "@material-ui/core": "latest",
-    "@material-ui/styles": "4.11.3",
     "immutable": "4.0.0-rc.12",
     "moment": "2.29.1",
     "react": "latest",
