@@ -23,7 +23,8 @@ const useStyles = makeStyles((theme) => ({
   root: {
     '& > *': {
       margin: theme.spacing(1)
-    }
+    },
+    dfCol: { backgroundColor: 'rgb(120,120,120)' }
   }
 }))
 
@@ -114,9 +115,13 @@ export default function ContainedButtons() {
     // });
   })
   const keys = Object.keys(diffData.first())
-  const columns = useMemo(() => keys.map((k) => ({ Header: k, accessor: k })), [
-    keys
-  ])
+  const columns = useMemo(
+    () =>
+      keys.map((k) =>
+        Object.assign({ Header: k, accessor: k, className: classes.dfCol })
+      ),
+    [keys, classes]
+  )
   const sortedDiffData = diffData.sortBy((i) => i.day)
   const {
     getTableProps,
@@ -148,7 +153,9 @@ export default function ContainedButtons() {
           {headerGroups.map((headerGroup) => (
             <TableRow {...headerGroup.getHeaderGroupProps()}>
               {headerGroup.headers.map((column) => (
-                <TableCell {...column.getHeaderProps()}>
+                <TableCell
+                  {...column.getHeaderProps([{ className: column.className }])}
+                >
                   {column.render('Header')}
                 </TableCell>
               ))}
