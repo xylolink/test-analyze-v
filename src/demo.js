@@ -12,15 +12,27 @@ import data from './data.js'
 import _ from 'underscore'
 import moment from 'moment'
 import Immutable from 'immutable'
-import { useTable } from 'react-table'
+import { useTable, useBlockLayout } from 'react-table'
+import { useSticky } from 'react-table-sticky'
 import MaUTable from '@material-ui/core/Table'
 import TableBody from '@material-ui/core/TableBody'
 import TableCell from '@material-ui/core/TableCell'
 import TableHead from '@material-ui/core/TableHead'
 import TableRow from '@material-ui/core/TableRow'
-import { TextField } from '@material-ui/core'
+import { LinearProgress, TableContainer, TextField } from '@material-ui/core'
+import clsx from 'clsx'
 
 const useStyles = makeStyles((theme) => ({
+  header: {
+    position: 'sticky',
+    top: 0,
+    backgroundColor: '#FFF'
+  },
+  container: {
+    maxHeight: 'calc(100vh - 150px)',
+    position: 'relative'
+  },
+  sticky: { backgroundColor: '#FFF', borderRight: '1px solid #000' },
   dfCol: { backgroundColor: 'rgb(0,0,0)', color: '#FFF' }
 }))
 
@@ -116,25 +128,45 @@ const getDose2 = (item) =>
 export default function ContainedButtons() {
   const classes = useStyles()
   const [dosePeriod, setDosePeriod] = useState(28)
-  const [diffData, setDiffData] = useState(getDiffData(data, dosePeriod))
+  const [diffData, setDiffData] = useState(Immutable.Map())
   const [tableData, setTableData] = useState(diffData.valueSeq().toArray())
-  const handleSubmitPeriod = () => {
+  const [startCalculation, setStartCalculation] = useState(null)
+  const [submitRand, setSubmitRand] = useState(0)
+
+  useEffect(() => {
+    if (startCalculation) {
+      setSubmitRand(Math.random())
+    }
+  }, [startCalculation])
+
+  useEffect(() => {
     const newData = getDiffData(data, dosePeriod)
     setDiffData(newData)
-    setTableData(newData.value().toArray())
+    setTableData(newData.valueSeq().toArray())
+    setStartCalculation(null)
+  }, [submitRand])
+
+  const handleSubmitPeriod = () => {
+    setStartCalculation(true)
   }
-  const keys = Object.keys(diffData.first())
+
+  const keys = useMemo(() => Object.keys(diffData.first() || {}), [
+    diffData.first()
+  ])
   const columns = useMemo(
     () =>
       keys.map((k) =>
-        Object.assign({
-          Header: k,
-          accessor: k,
-          className: k.includes('df') ? classes.dfCol : '',
-          style: k.includes('df') ? { fontWeight: 500 } : {}
-        })
+        Object.assign(
+          {
+            Header: k,
+            accessor: k,
+            className: k.includes('df') ? classes.dfCol : '',
+            style: k.includes('df') ? { fontWeight: 500 } : {}
+          },
+          k === 'day' ? { sticky: 'left', className: classes.sticky } : {}
+        )
       ),
-    [keys, classes]
+    [keys]
   )
   const {
     getTableProps,
@@ -142,7 +174,7 @@ export default function ContainedButtons() {
     headerGroups,
     rows,
     prepareRow
-  } = useTable({ columns, data: tableData })
+  } = useTable({ columns, data: tableData }, useBlockLayout, useSticky)
 
   const handleGenerateJSON = () => {
     const json = JSON.stringify(diffData)
@@ -183,62 +215,71 @@ export default function ContainedButtons() {
           </Button>
         </div>
       </div>
-      <MaUTable {...getTableProps()}>
-        <TableHead>
-          {headerGroups.map((headerGroup) => (
-            <TableRow {...headerGroup.getHeaderGroupProps()}>
-              {headerGroup.headers.map((column) => (
-                <TableCell
-                  {...column.getHeaderProps([
-                    { className: column.className, style: column.style }
-                  ])}
-                >
-                  {column.render('Header')}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableHead>
-        <TableBody>
-          {rows.map((row, i) => {
-            prepareRow(row)
-            return (
-              <TableRow {...row.getRowProps()}>
-                {row.cells.map((cell) => {
-                  return (
+      {startCalculation ? (
+        <LinearProgress />
+      ) : (
+        <TableContainer className={classes.container}>
+          <MaUTable {...getTableProps()}>
+            <TableHead>
+              {headerGroups.map((headerGroup) => (
+                <TableRow {...headerGroup.getHeaderGroupProps()}>
+                  {headerGroup.headers.map((column) => (
                     <TableCell
-                      {...cell.getCellProps([
+                      {...column.getHeaderProps([
                         {
-                          className: cell.column.className,
-                          style: Object.assign(
-                            cell.column.id.includes('df')
-                              ? {
-                                  backgroundColor:
-                                    cell.value < 0 ? '#f44336' : '#B3E5FC',
-                                  color: cell.value < 0 ? '#FFF' : '#000'
-                                }
-                              : cell.column.id.includes('AZ')
-                              ? {
-                                  backgroundColor: '#BDBDBD',
-                                  fontSize: '0.85rem'
-                                }
-                              : {},
-                            cell.column.id.includes('d2')
-                              ? { fontStyle: 'italic' }
-                              : {}
-                          )
+                          className: clsx(classes.header, column.className),
+                          style: column.style
                         }
                       ])}
                     >
-                      {cell.render('Cell')}
+                      {column.render('Header')}
                     </TableCell>
-                  )
-                })}
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </MaUTable>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHead>
+            <TableBody>
+              {rows.map((row, i) => {
+                prepareRow(row)
+                return (
+                  <TableRow {...row.getRowProps()}>
+                    {row.cells.map((cell) => {
+                      return (
+                        <TableCell
+                          {...cell.getCellProps([
+                            {
+                              className: cell.column.className,
+                              style: Object.assign(
+                                cell.column.id.includes('df')
+                                  ? {
+                                      backgroundColor:
+                                        cell.value < 0 ? '#f44336' : '#B3E5FC',
+                                      color: cell.value < 0 ? '#FFF' : '#000'
+                                    }
+                                  : cell.column.id.includes('AZ')
+                                  ? {
+                                      backgroundColor: '#BDBDBD',
+                                      fontSize: '0.85rem'
+                                    }
+                                  : {},
+                                cell.column.id.includes('d2')
+                                  ? { fontStyle: 'italic' }
+                                  : {}
+                              )
+                            }
+                          ])}
+                        >
+                          {cell.render('Cell')}
+                        </TableCell>
+                      )
+                    })}
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </MaUTable>
+        </TableContainer>
+      )}{' '}
     </div>
   )
 }
